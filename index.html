@@ -1,0 +1,1621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NextBill Schema Atlas</title>
+<style>
+  :root{
+    --bg:#f5f6f8; --surface:#ffffff; --surface-2:#eef0f4; --surface-3:#e4e7ed;
+    --border:#d8dce3; --text:#1a1f29; --text-dim:#5c6572; --text-faint:#8991a0;
+    --accent:#5a4fd9; --accent-soft:#ece9fb; --accent-contrast:#ffffff;
+    --teal:#0d8f81; --teal-soft:#e2f5f2;
+    --amber:#b5790a; --amber-soft:#fbf0dc;
+    --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+    --sans:'IBM Plex Sans',system-ui,sans-serif;
+    --shadow: 0 1px 2px rgba(20,24,33,.06), 0 6px 20px -8px rgba(20,24,33,.12);
+  }
+  :root:not([data-theme="light"]){
+    @media (prefers-color-scheme: dark){
+      --bg:#11141b; --surface:#171b24; --surface-2:#1e232e; --surface-3:#262c39;
+      --border:#2c3342; --text:#e7eaf0; --text-dim:#9aa3b5; --text-faint:#6b7386;
+      --accent:#8d82ff; --accent-soft:#272250; --accent-contrast:#0f0d20;
+      --teal:#3cd9c6; --teal-soft:#153432;
+      --amber:#e3a63d; --amber-soft:#3a2d14;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px -10px rgba(0,0,0,.55);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#11141b; --surface:#171b24; --surface-2:#1e232e; --surface-3:#262c39;
+    --border:#2c3342; --text:#e7eaf0; --text-dim:#9aa3b5; --text-faint:#6b7386;
+    --accent:#8d82ff; --accent-soft:#272250; --accent-contrast:#0f0d20;
+    --teal:#3cd9c6; --teal-soft:#153432;
+    --amber:#e3a63d; --amber-soft:#3a2d14;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px -10px rgba(0,0,0,.55);
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    background:var(--bg); color:var(--text); font-family:var(--sans);
+    font-size:14px; line-height:1.5;
+  }
+  h1,h2,h3{text-wrap:balance; margin:0;}
+  code,.mono{font-family:var(--mono);}
+
+  #app{display:flex; min-height:100vh; flex-direction:column;}
+
+  /* ---------- top bar ---------- */
+  #topbar{
+    display:flex; align-items:center; gap:16px; padding:12px 20px;
+    border-bottom:1px solid var(--border); background:var(--surface);
+    position:sticky; top:0; z-index:40; flex-wrap:wrap;
+  }
+  #topbar .brand{display:flex; align-items:baseline; gap:8px; flex-shrink:0;}
+  #topbar .brand .name{font-weight:700; font-size:16px; letter-spacing:-.01em;}
+  #topbar .brand .tag{color:var(--text-faint); font-size:12px; font-family:var(--mono);}
+  #searchWrap{position:relative; flex:1; min-width:180px; max-width:420px;}
+  #searchInput{
+    width:100%; padding:8px 12px 8px 34px; border-radius:8px; border:1px solid var(--border);
+    background:var(--surface-2); color:var(--text); font-size:13px; font-family:var(--sans);
+  }
+  #searchInput:focus{outline:2px solid var(--accent); outline-offset:-1px;}
+  #searchWrap svg{position:absolute; left:10px; top:50%; transform:translateY(-50%); opacity:.5; pointer-events:none;}
+  #searchResults{
+    position:absolute; top:calc(100% + 6px); left:0; right:0; background:var(--surface);
+    border:1px solid var(--border); border-radius:10px; box-shadow:var(--shadow);
+    max-height:340px; overflow-y:auto; z-index:50;
+  }
+  #searchResults .res{
+    padding:8px 12px; cursor:pointer; display:flex; justify-content:space-between; gap:8px; align-items:center;
+  }
+  #searchResults .res:hover,#searchResults .res.active{background:var(--surface-2);}
+  #searchResults .res .nm{font-family:var(--mono); font-weight:600; font-size:13px;}
+  #searchResults .res .dm{font-size:11px; color:var(--text-faint);}
+  .statchips{display:flex; gap:6px; flex-wrap:wrap; margin-left:auto;}
+  .chip{
+    font-family:var(--mono); font-size:11px; color:var(--text-dim); background:var(--surface-2);
+    border:1px solid var(--border); padding:4px 9px; border-radius:999px; white-space:nowrap;
+  }
+  #themeNote{font-size:11px; color:var(--text-faint);}
+
+  /* ---------- layout ---------- */
+  #body{display:flex; flex:1; min-height:0;}
+  #sidebar{
+    width:250px; flex-shrink:0; border-right:1px solid var(--border); background:var(--surface);
+    overflow-y:auto; padding:14px 10px;
+  }
+  #sidebar .side-head{
+    font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-faint);
+    padding:4px 10px 8px;
+  }
+  .domain-item{
+    display:flex; justify-content:space-between; align-items:center; gap:8px;
+    padding:8px 10px; border-radius:8px; cursor:pointer; font-size:13px; color:var(--text-dim);
+  }
+  .domain-item:hover{background:var(--surface-2); color:var(--text);}
+  .domain-item.active{background:var(--accent-soft); color:var(--accent); font-weight:600;}
+  .domain-item .cnt{font-family:var(--mono); font-size:11px; color:var(--text-faint);}
+  .domain-item.active .cnt{color:var(--accent);}
+
+  #main{flex:1; min-width:0; overflow-y:auto; padding:22px 26px 60px;}
+  .crumbs{font-size:12px; color:var(--text-faint); margin-bottom:14px; display:flex; gap:6px; align-items:center; flex-wrap:wrap;}
+  .crumbs a{color:var(--text-dim); cursor:pointer; text-decoration:none;}
+  .crumbs a:hover{color:var(--accent);}
+  .crumbs .sep{opacity:.5;}
+
+  /* ---------- overview ---------- */
+  .stat-row{display:flex; gap:12px; margin-bottom:26px; flex-wrap:wrap;}
+  .stat-tile{
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    padding:14px 18px; min-width:120px; box-shadow:var(--shadow);
+  }
+  .stat-tile .num{font-family:var(--mono); font-size:26px; font-weight:700; color:var(--accent); font-variant-numeric:tabular-nums;}
+  .stat-tile .lbl{font-size:12px; color:var(--text-dim); margin-top:2px;}
+
+  .domain-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:12px;}
+  .domain-card{
+    background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 16px;
+    cursor:pointer; box-shadow:var(--shadow); transition:transform .12s, border-color .12s;
+  }
+  .domain-card:hover{border-color:var(--accent); transform:translateY(-2px);}
+  .domain-card h3{font-size:14px; font-weight:600; margin-bottom:4px;}
+  .domain-card .cnt{font-family:var(--mono); font-size:12px; color:var(--accent); margin-bottom:8px;}
+  .domain-card .ex{font-size:11px; color:var(--text-faint); font-family:var(--mono); line-height:1.6;}
+
+  /* ---------- domain view ---------- */
+  .domain-head{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px; flex-wrap:wrap; gap:8px;}
+  .domain-head h2{font-size:20px;}
+  .domain-sub{color:var(--text-faint); font-size:12px; margin-bottom:18px;}
+  .table-chip-row{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:20px;}
+  .table-chip{
+    font-family:var(--mono); font-size:12px; padding:5px 10px; border-radius:7px;
+    border:1px solid var(--border); background:var(--surface); cursor:pointer; color:var(--text-dim);
+  }
+  .table-chip:hover{border-color:var(--accent); color:var(--accent);}
+
+  .diagram-card{
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    box-shadow:var(--shadow); padding:10px; overflow-x:auto; margin-bottom:20px;
+  }
+  .diagram-card .mermaid-host{min-width:fit-content;}
+  .diagram-note{font-size:11px; color:var(--text-faint); padding:2px 6px 10px;}
+
+  /* ---------- table focus view ---------- */
+  .focus-grid{display:grid; grid-template-columns:minmax(0,1.6fr) minmax(260px,1fr); gap:18px; align-items:start;}
+  @media (max-width: 860px){ .focus-grid{grid-template-columns:1fr;} }
+
+  .panel{background:var(--surface); border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow); padding:16px 18px; margin-bottom:16px;}
+  .panel h3{font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-faint); margin-bottom:10px;}
+  .table-title{display:flex; align-items:baseline; gap:10px; margin-bottom:4px; flex-wrap:wrap;}
+  .table-title .nm{font-family:var(--mono); font-size:21px; font-weight:700;}
+  .domain-tag{
+    font-size:11px; background:var(--teal-soft); color:var(--teal); border-radius:999px; padding:3px 10px;
+    font-weight:600; cursor:pointer;
+  }
+  .field-table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  .field-table td{padding:5px 6px; border-bottom:1px solid var(--border); vertical-align:top;}
+  .field-table tr:last-child td{border-bottom:none;}
+  .field-table .fn{font-family:var(--mono); font-weight:600;}
+  .field-table .ft{font-family:var(--mono); color:var(--text-dim);}
+  .field-table .flags{display:flex; gap:4px; flex-wrap:wrap;}
+  .flag{font-size:9.5px; padding:1px 5px; border-radius:5px; font-weight:700; letter-spacing:.02em;}
+  .flag.pk{background:var(--accent-soft); color:var(--accent);}
+  .flag.fk{background:var(--teal-soft); color:var(--teal);}
+  .flag.uq{background:var(--amber-soft); color:var(--amber);}
+  .flag.opt{background:var(--surface-3); color:var(--text-faint);}
+  .flag.list{background:var(--surface-3); color:var(--text-faint);}
+  .flag.enum{background:var(--teal-soft); color:var(--teal);}
+  .ft.enum-link{cursor:pointer; text-decoration:underline; text-decoration-style:dotted; text-decoration-color:var(--teal); color:var(--teal);}
+  .ft.enum-link:hover{color:var(--accent); text-decoration-color:var(--accent);}
+
+  .enum-block{padding:10px 0; border-bottom:1px solid var(--border); scroll-margin-top:16px;}
+  .enum-block:last-child{border-bottom:none; padding-bottom:0;}
+  .enum-block:first-of-type{padding-top:0;}
+  .enum-name{font-family:var(--mono); font-weight:700; font-size:13px; color:var(--teal); margin-bottom:3px;}
+  .enum-used-by{font-size:11px; color:var(--text-faint); margin-bottom:8px;}
+  .enum-used-by code{color:var(--text-dim);}
+  .enum-values{display:flex; flex-wrap:wrap; gap:5px;}
+  .enum-pill{
+    font-family:var(--mono); font-size:11px; padding:3px 9px; border-radius:999px;
+    background:var(--surface-2); border:1px solid var(--border); color:var(--text-dim);
+  }
+
+  .rel-list{list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:2px;}
+  .rel-list li{
+    display:flex; justify-content:space-between; align-items:center; gap:8px;
+    padding:7px 8px; border-radius:7px; cursor:pointer; font-size:12.5px;
+  }
+  .rel-list li:hover{background:var(--surface-2);}
+  .rel-list .target{font-family:var(--mono); font-weight:600;}
+  .rel-list .card{font-family:var(--mono); color:var(--text-faint); font-size:11px;}
+  .rel-group-head{font-size:11px; color:var(--text-faint); padding:8px 8px 2px; text-transform:uppercase; letter-spacing:.04em;}
+
+  .empty-hint{color:var(--text-faint); font-size:13px; padding:40px 0; text-align:center;}
+
+  a.linklike{color:var(--accent); cursor:pointer; text-decoration:underline; text-decoration-color:transparent;}
+  a.linklike:hover{text-decoration-color:var(--accent);}
+
+  /* ---------- view toggle ---------- */
+  .viewToggle{display:flex; border:1px solid var(--border); border-radius:8px; overflow:hidden; flex-shrink:0;}
+  .vt-btn{
+    font-family:var(--sans); font-size:12.5px; font-weight:600; padding:7px 14px; border:none;
+    background:var(--surface); color:var(--text-dim); cursor:pointer;
+  }
+  .vt-btn + .vt-btn{border-left:1px solid var(--border);}
+  .vt-btn.active{background:var(--accent); color:var(--accent-contrast);}
+  .vt-btn:hover:not(.active){background:var(--surface-2); color:var(--text);}
+
+  /* ---------- graph view ---------- */
+  #graphPage{display:flex; flex-direction:column; height:100%; width:100%;}
+  #graphToolbar{
+    display:flex; gap:10px; align-items:center; padding:10px 16px; border-bottom:1px solid var(--border);
+    background:var(--surface); flex-wrap:wrap; flex-shrink:0;
+  }
+  #graphToolbar .grp{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-dim);}
+  #graphToolbar select{
+    font-family:var(--sans); font-size:12px; padding:5px 8px; border-radius:6px; border:1px solid var(--border);
+    background:var(--surface-2); color:var(--text);
+  }
+  #graphToolbar label{display:flex; align-items:center; gap:5px; cursor:pointer; user-select:none;}
+  .gbtn{
+    font-family:var(--sans); font-size:12px; font-weight:600; padding:6px 12px; border-radius:7px;
+    border:1px solid var(--border); background:var(--surface-2); color:var(--text-dim); cursor:pointer;
+  }
+  .gbtn:hover{border-color:var(--accent); color:var(--accent);}
+  .gbtn.primary{background:var(--accent); color:var(--accent-contrast); border-color:var(--accent);}
+  #graphStatus{margin-left:auto; font-family:var(--mono); font-size:11px; color:var(--text-faint); text-align:right;}
+  #graphBody{flex:1; min-height:0; display:flex; position:relative;}
+  #graphSvgWrap{flex:1; min-width:0; position:relative; background:var(--bg); overflow:hidden;}
+  #graphSvgWrap svg{width:100%; height:100%; display:block; cursor:grab;}
+  #graphSvgWrap svg.dragging{cursor:grabbing;}
+  #graphLegend{
+    width:220px; flex-shrink:0; border-left:1px solid var(--border); background:var(--surface);
+    overflow-y:auto; padding:12px;
+  }
+  #graphLegend .lg-note{font-size:11px; color:var(--text-faint); margin-bottom:10px; line-height:1.5;}
+  .legend-item{
+    display:flex; align-items:center; gap:7px; padding:5px 7px; border-radius:6px; cursor:pointer; font-size:12px;
+  }
+  .legend-item:hover{background:var(--surface-2);}
+  .legend-item .sw{width:10px; height:10px; border-radius:3px; flex-shrink:0;}
+  .legend-item .lbl{flex:1; color:var(--text-dim);}
+  .legend-item .n{font-family:var(--mono); font-size:10.5px; color:var(--text-faint);}
+  .legend-item.dim{opacity:.35;}
+  .graph-tip{
+    position:absolute; pointer-events:none; background:var(--surface); border:1px solid var(--border);
+    border-radius:8px; padding:8px 10px; font-size:12px; box-shadow:var(--shadow); z-index:30; max-width:240px;
+  }
+  .graph-tip .nm{font-family:var(--mono); font-weight:700; margin-bottom:2px;}
+  .graph-tip .dm{color:var(--text-faint); font-size:11px;}
+  .node-popover{
+    position:absolute; background:var(--surface); border:1px solid var(--border); border-radius:10px;
+    box-shadow:var(--shadow); padding:10px 12px; z-index:35; font-size:12.5px; min-width:180px;
+  }
+  .node-popover .nm{font-family:var(--mono); font-weight:700; font-size:14px; margin-bottom:2px;}
+  .node-popover .dm{color:var(--text-faint); font-size:11px; margin-bottom:8px;}
+  .node-popover .row{display:flex; gap:8px;}
+  .node-popover button{
+    font-family:var(--sans); font-size:11.5px; font-weight:600; padding:5px 9px; border-radius:6px;
+    border:1px solid var(--border); background:var(--surface-2); color:var(--text-dim); cursor:pointer;
+  }
+  .node-popover button.primary{background:var(--accent); color:var(--accent-contrast); border-color:var(--accent);}
+  .node-popover .x{position:absolute; top:6px; right:8px; cursor:pointer; color:var(--text-faint); font-size:14px;}
+
+  @media (max-width:760px){
+    #graphLegend{display:none;}
+  }
+
+  /* ---------- ERD view (dbdiagram-style table boxes) ---------- */
+  #erdPage{display:flex; flex-direction:column; height:100%; width:100%;}
+  #erdCanvasWrap{flex:1; min-width:0; position:relative; background:var(--bg); overflow:hidden; cursor:grab;}
+  #erdCanvasWrap.dragging{cursor:grabbing;}
+  #erdInner{position:absolute; top:0; left:0; transform-origin:0 0;}
+  #erdInner .mermaid-host svg{max-width:none !important;}
+  #erdZoomCtl{position:absolute; right:14px; bottom:14px; display:flex; flex-direction:column; gap:4px; z-index:20;}
+  #erdZoomCtl button{
+    width:30px; height:30px; border-radius:7px; border:1px solid var(--border); background:var(--surface);
+    color:var(--text-dim); font-size:15px; cursor:pointer; box-shadow:var(--shadow);
+  }
+  #erdZoomCtl button:hover{color:var(--accent); border-color:var(--accent);}
+  #erdEmpty{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:4px;
+    color:var(--text-faint); font-size:13px; text-align:center; padding:24px; overflow-y:auto;
+  }
+  #erdEmpty .big{font-size:15px; color:var(--text-dim); font-weight:600; margin-bottom:6px;}
+  #erdEmpty .starter-groups{width:100%; max-width:900px; margin-top:10px; text-align:left; column-count:1; column-gap:10px;}
+  @media (min-width:640px){ #erdEmpty .starter-groups{column-count:2;} }
+  #erdEmpty .starter-group{
+    border:1px solid var(--border); border-radius:9px; background:var(--surface); overflow:hidden;
+    break-inside:avoid; margin-bottom:8px;
+  }
+  #erdEmpty .starter-group summary{
+    list-style:none; cursor:pointer; padding:8px 12px; font-size:12px; font-weight:600; color:var(--text-dim);
+    display:flex; justify-content:space-between; align-items:center; gap:8px;
+  }
+  #erdEmpty .starter-group summary::-webkit-details-marker{display:none;}
+  #erdEmpty .starter-group summary .cnt{font-family:var(--mono); font-size:10.5px; color:var(--text-faint); font-weight:400;}
+  #erdEmpty .starter-group summary:hover{color:var(--accent);}
+  #erdEmpty .starter-group[open] summary{border-bottom:1px solid var(--border);}
+  #erdEmpty .starter-group .eg{padding:10px 12px;}
+  #erdEmpty .eg{display:flex; gap:7px; flex-wrap:wrap; justify-content:flex-start;}
+
+  /* ---------- help modal ---------- */
+  #helpBtn{flex-shrink:0;}
+  .modal-backdrop{
+    position:fixed; inset:0; background:rgba(10,12,16,.55); z-index:200;
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .modal-backdrop[hidden]{display:none;}
+  .modal-panel{
+    position:relative; background:var(--surface); border:1px solid var(--border); border-radius:14px;
+    max-width:680px; width:100%; max-height:86vh; overflow-y:auto; padding:26px 30px 30px;
+    box-shadow:var(--shadow);
+  }
+  .modal-panel h2{font-size:19px; margin-bottom:18px;}
+  .modal-close{
+    position:absolute; top:14px; right:16px; background:none; border:none; font-size:22px; line-height:1;
+    color:var(--text-faint); cursor:pointer; padding:4px 8px; border-radius:6px;
+  }
+  .modal-close:hover{color:var(--text); background:var(--surface-2);}
+  .help-section{margin-bottom:22px;}
+  .help-section:last-child{margin-bottom:0;}
+  .help-section h3{font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-faint); margin-bottom:10px;}
+  .help-section p{color:var(--text-dim); font-size:13px; line-height:1.6; margin:0 0 8px;}
+  .help-row{
+    display:flex; align-items:center; gap:12px; padding:7px 0; border-bottom:1px dashed var(--border); font-size:13px;
+  }
+  .help-row:last-child{border-bottom:none;}
+  .help-sym{
+    font-family:var(--mono); font-size:15px; font-weight:700; color:var(--accent); min-width:52px; text-align:center;
+    background:var(--accent-soft); border-radius:7px; padding:4px 6px; flex-shrink:0;
+  }
+  .help-desc{color:var(--text-dim); flex:1;}
+  .help-badges{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;}
+  .help-badges .flag{font-size:11px; padding:3px 8px;}
+  .help-views{display:flex; flex-direction:column; gap:12px;}
+  .help-view-card{border:1px solid var(--border); border-radius:10px; padding:12px 14px; background:var(--surface-2);}
+  .help-view-card .vt{font-weight:700; font-size:13px; margin-bottom:4px; color:var(--text);}
+  .help-view-card p{margin:0; font-size:12.5px;}
+  .help-swatch-row{display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text-dim);}
+  .help-swatch{width:14px; height:14px; border-radius:4px; flex-shrink:0;}
+
+  /* scrollbar tidy */
+  ::-webkit-scrollbar{height:10px; width:10px;}
+  ::-webkit-scrollbar-thumb{background:var(--border); border-radius:6px;}
+
+  @media (max-width:760px){
+    #sidebar{display:none;}
+    #main{padding:16px 14px 50px;}
+    .focus-grid{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="data.js"></script>
+
+<div id="app">
+  <div id="topbar">
+    <div class="brand">
+      <span class="name">NextBill Schema Atlas</span>
+      <span class="tag">prisma/schema.prisma</span>
+    </div>
+    <div id="searchWrap">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input id="searchInput" placeholder="Jump to a table (e.g. LandedCost, platform_order)…" autocomplete="off">
+      <div id="searchResults" hidden></div>
+    </div>
+    <div class="viewToggle" id="viewToggle">
+      <button class="vt-btn active" data-mode="menu" onclick="NAV.menuMode()">Menu</button>
+      <button class="vt-btn" data-mode="graph" onclick="NAV.graphMode()">Graph</button>
+      <button class="vt-btn" data-mode="erd" onclick="NAV.erdMode()">ERD</button>
+    </div>
+    <div class="statchips" id="statChips"></div>
+    <button id="helpBtn" class="gbtn" title="How to read this" onclick="NAV.help()">? Help</button>
+  </div>
+
+  <div id="body">
+    <div id="sidebar">
+      <div class="side-head">Domains</div>
+      <div id="domainList"></div>
+    </div>
+    <div id="main"></div>
+  </div>
+
+  <div id="helpBackdrop" class="modal-backdrop" hidden>
+    <div class="modal-panel" role="dialog" aria-label="How to read this schema atlas">
+      <button class="modal-close" onclick="NAV.closeHelp()" aria-label="Close">×</button>
+      <h2>How to read this</h2>
+      <div id="helpBody"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const DATA = window.SCHEMA_DATA;
+  const MODELS = DATA.models;       // name -> {domain, fields:[{n,t,l,o,id,u,rel}]}
+  const EDGES = DATA.edges;         // list of edge objects
+  const DOMAINS = DATA.domains;     // domain name -> [model names]
+  const DOMAIN_ORDER = Object.keys(DOMAINS);
+  const ENUMS = DATA.enums || {};   // enum name -> [values]
+
+  const modelNames = Object.keys(MODELS).sort((a,b)=>a.localeCompare(b));
+
+  // ---- adjacency: model -> [{other, edge}] ----
+  const adjacency = {};
+  modelNames.forEach(n => adjacency[n] = []);
+  EDGES.forEach(e => {
+    adjacency[e.modelA] = adjacency[e.modelA] || [];
+    adjacency[e.modelB] = adjacency[e.modelB] || [];
+    adjacency[e.modelA].push({other:e.modelB, edge:e, selfIsA:true});
+    adjacency[e.modelB].push({other:e.modelA, edge:e, selfIsA:false});
+  });
+
+  function escId(name){ return name.replace(/[^A-Za-z0-9_]/g,'_'); }
+
+  function leftSym(isList, isOptional){
+    if(isList) return '}o';
+    return isOptional ? '|o' : '||';
+  }
+  function rightSym(isList, isOptional){
+    if(isList) return 'o{';
+    return isOptional ? 'o|' : '||';
+  }
+
+  // symbol near A derived from B's own field; symbol near B derived from A's own field
+  function edgeSymbols(e){
+    const bList = e.bIsList===null||e.bIsList===undefined ? false : e.bIsList;
+    const bOpt  = e.bIsOptional===null||e.bIsOptional===undefined ? false : e.bIsOptional;
+    return {
+      near_A: leftSym(bList, bOpt),
+      near_B: rightSym(e.aIsList, e.aIsOptional)
+    };
+  }
+
+  function edgeLabel(e){
+    // prefer the FK-holding side's field name (most informative), else join both
+    if(e.aHasFK) return e.fieldOnA;
+    if(e.bHasFK) return e.fieldOnB || e.fieldOnA;
+    return e.fieldOnB ? (e.fieldOnA+'/'+e.fieldOnB) : e.fieldOnA;
+  }
+
+  // ---- key-field heuristic for compact neighbor boxes ----
+  const KEY_RE = /(name|code|number|email|status|title|type|number|label)$/i;
+  function keyFields(modelName, max){
+    const flds = (MODELS[modelName]||{fields:[]}).fields;
+    const picked = [];
+    const ids = flds.filter(f=>f.id);
+    picked.push(...ids);
+    flds.forEach(f=>{
+      if(picked.length>=max) return;
+      if(f.id || f.rel) return;
+      if(KEY_RE.test(f.n) && !picked.includes(f)) picked.push(f);
+    });
+    flds.forEach(f=>{
+      if(picked.length>=max) return;
+      if(f.id || f.rel) return;
+      if(!picked.includes(f)) picked.push(f);
+    });
+    return picked.slice(0,max);
+  }
+
+  // ========== mermaid ==========
+  function isDarkNow(){
+    const root = document.documentElement;
+    if(root.getAttribute('data-theme')==='dark') return true;
+    if(root.getAttribute('data-theme')==='light') return false;
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+
+  function mermaidTheme(){
+    const dark = isDarkNow();
+    return {
+      theme:'base',
+      themeVariables: dark ? {
+        background:'#171b24', primaryColor:'#272250', primaryTextColor:'#e7eaf0',
+        primaryBorderColor:'#8d82ff', lineColor:'#6b7386', secondaryColor:'#1e232e',
+        tertiaryColor:'#1e232e', fontFamily:'IBM Plex Mono', entityBkgColor:'#1e232e',
+        attributeBackgroundColorOdd:'#1a1f29', attributeBackgroundColorEven:'#171b24',
+        nodeTextColor:'#e7eaf0', textColor:'#e7eaf0'
+      } : {
+        background:'#ffffff', primaryColor:'#ece9fb', primaryTextColor:'#1a1f29',
+        primaryBorderColor:'#5a4fd9', lineColor:'#8991a0', secondaryColor:'#eef0f4',
+        tertiaryColor:'#eef0f4', fontFamily:'IBM Plex Mono', entityBkgColor:'#f7f8fa',
+        attributeBackgroundColorOdd:'#ffffff', attributeBackgroundColorEven:'#f5f6f8',
+        nodeTextColor:'#1a1f29', textColor:'#1a1f29'
+      }
+    };
+  }
+
+  let mermaidSeq = 0;
+  async function renderMermaidInto(container, text){
+    // maxTextSize is Mermaid's own guard against pathological diagrams; raised
+    // well above the default (~50k chars) as a safety net. The real limit that
+    // matters is the proactive size check before this is ever called (see
+    // ERD_MAX_VISIBLE in renderErd) -- this is a backstop, not the main guard.
+    mermaid.initialize(Object.assign({startOnLoad:false, securityLevel:'loose', maxTextSize:900000, maxEdges:2000}, mermaidTheme()));
+    const id = 'mmd' + (mermaidSeq++);
+    const errHtml = (msg)=> `<div style="padding:16px; color:var(--text-dim); font-size:13px; max-width:440px;">
+      <div style="font-weight:700; color:var(--text); margin-bottom:6px;">Diagram couldn't render</div>
+      <div style="margin-bottom:8px;">${msg}</div>
+      <div style="color:var(--text-faint); font-size:12px;">Try "Clear" and a smaller expansion (lower depth, or leave "include tenancy links" unchecked).</div>
+    </div>`;
+    try{
+      const {svg} = await mermaid.render(id, text);
+      // Some failures don't throw -- Mermaid renders its own error graphic as a
+      // "successful" SVG instead (aria-roledescription="error"). Treat that the
+      // same as a thrown error rather than showing Mermaid's raw red error box.
+      if(svg.includes('aria-roledescription="error"')){
+        container.innerHTML = errHtml('The diagram is too large or complex for the renderer to lay out.');
+        console.error('mermaid produced an internal error diagram', text.length, 'chars');
+      } else {
+        container.innerHTML = svg;
+      }
+    }catch(err){
+      container.innerHTML = errHtml((err&&err.message)||'Unknown rendering error.');
+      console.error(err, text);
+    }
+  }
+
+  let lastDiagramText = null, lastDiagramEl = null;
+  function trackDiagram(el, text){ lastDiagramEl = el; lastDiagramText = text; }
+  window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ()=>{
+    if(lastDiagramEl && lastDiagramText) renderMermaidInto(lastDiagramEl, lastDiagramText);
+  });
+
+  // ========== routing / state ==========
+  const main = document.getElementById('main');
+  let state = {view:'overview', domain:null, table:null};
+
+  function go(view, payload){
+    state = Object.assign({view}, payload||{});
+    render();
+    window.scrollTo(0,0);
+  }
+
+  function crumbsHtml(){
+    const parts = [`<a onclick="NAV.overview()">Overview</a>`];
+    if(state.view==='domain' || state.view==='table'){
+      const dom = state.view==='table' ? MODELS[state.table].domain : state.domain;
+      parts.push(`<span class="sep">/</span><a onclick="NAV.domain('${dom.replace(/'/g,"\\'")}')">${dom}</a>`);
+    }
+    if(state.view==='table'){
+      parts.push(`<span class="sep">/</span><span class="mono">${state.table}</span>`);
+    }
+    return parts.join('');
+  }
+
+  // ---------- sidebar ----------
+  function renderSidebar(){
+    const list = document.getElementById('domainList');
+    list.innerHTML = DOMAIN_ORDER.map(d=>{
+      const active = (state.view!=='overview') && ((state.view==='domain'&&state.domain===d) || (state.view==='table'&&MODELS[state.table].domain===d));
+      return `<div class="domain-item ${active?'active':''}" onclick="NAV.domain('${d.replace(/'/g,"\\'")}')">
+        <span>${d}</span><span class="cnt">${DOMAINS[d].length}</span>
+      </div>`;
+    }).join('');
+  }
+
+  function renderStatChips(){
+    document.getElementById('statChips').innerHTML = `
+      <span class="chip">${modelNames.length} tables</span>
+      <span class="chip">${EDGES.length} relations</span>
+      <span class="chip">${DOMAIN_ORDER.length} domains</span>
+      <span class="chip">${Object.keys(ENUMS).length} enums</span>
+    `;
+  }
+
+  // ---------- overview ----------
+  function renderOverview(){
+    main.innerHTML = `
+      <div class="crumbs">${crumbsHtml()}</div>
+      <div class="stat-row">
+        <div class="stat-tile"><div class="num">${modelNames.length}</div><div class="lbl">tables</div></div>
+        <div class="stat-tile"><div class="num">${EDGES.length}</div><div class="lbl">relations</div></div>
+        <div class="stat-tile"><div class="num">${DOMAIN_ORDER.length}</div><div class="lbl">domains</div></div>
+        <div class="stat-tile"><div class="num">${Object.keys(ENUMS).length}</div><div class="lbl">enums</div></div>
+      </div>
+      <div class="domain-grid" id="domainGrid"></div>
+    `;
+    document.getElementById('domainGrid').innerHTML = DOMAIN_ORDER.map(d=>{
+      const tbls = DOMAINS[d];
+      return `<div class="domain-card" onclick="NAV.domain('${d.replace(/'/g,"\\'")}')">
+        <h3>${d}</h3>
+        <div class="cnt">${tbls.length} tables</div>
+        <div class="ex">${tbls.slice(0,4).join(' · ')}${tbls.length>4?' …':''}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // ---------- domain view ----------
+  function renderDomain(domain){
+    const tables = (DOMAINS[domain]||[]).slice().sort((a,b)=>a.localeCompare(b));
+    const intraEdges = EDGES.filter(e => tables.includes(e.modelA) && tables.includes(e.modelB));
+
+    main.innerHTML = `
+      <div class="crumbs">${crumbsHtml()}</div>
+      <div class="domain-head"><h2>${domain}</h2></div>
+      <div class="domain-sub">${tables.length} tables · ${intraEdges.length} relations within this domain (tables also relate heavily to other domains — click a table for its full neighborhood)</div>
+      <div class="table-chip-row" id="chipRow"></div>
+      <div class="diagram-card"><div class="mermaid-host" id="domainDiagram"></div></div>
+      <div class="diagram-note">Showing only relations between tables inside <strong>${domain}</strong>. Click any box, or a chip above, to open a table's full cross-domain neighborhood.</div>
+    `;
+    document.getElementById('chipRow').innerHTML = tables.map(t=>
+      `<span class="table-chip" onclick="NAV.table('${t.replace(/'/g,"\\'")}')">${t}</span>`
+    ).join('');
+
+    let lines = ['erDiagram'];
+    if(intraEdges.length===0){
+      lines.push('  %% no intra-domain relations - tables below relate mainly to other domains');
+      tables.forEach(t=>lines.push('  '+escId(t)+' {\n    string _ "see table view"\n  }'));
+    } else {
+      const seen = new Set();
+      intraEdges.forEach(e=>{
+        const sym = edgeSymbols(e);
+        const lbl = edgeLabel(e).replace(/"/g,"'");
+        lines.push(`  ${escId(e.modelA)} ${sym.near_A}--${sym.near_B} ${escId(e.modelB)} : "${lbl}"`);
+        seen.add(e.modelA); seen.add(e.modelB);
+      });
+      tables.forEach(t=>{
+        if(!seen.has(t)) lines.push('  '+escId(t)+' {\n    string _ "no intra-domain relation"\n  }');
+      });
+    }
+    // map escaped ids back to readable labels where mermaid allows aliasing isn't trivial; rely on same text
+    const text = lines.join('\n');
+    const el = document.getElementById('domainDiagram');
+    renderMermaidInto(el, text);
+    trackDiagram(el, text);
+
+    // make rendered entity boxes clickable -> table view
+    setTimeout(()=>{
+      tables.forEach(t=>{
+        const idEsc = escId(t);
+        const nodes = el.querySelectorAll(`[id*="${idEsc}"]`);
+        nodes.forEach(n=>{ n.style.cursor='pointer'; n.addEventListener('click', ()=>NAV.table(t)); });
+      });
+    }, 60);
+  }
+
+  // ---------- table focus view ----------
+  const NEIGHBOR_DIAGRAM_CAP = 14;
+
+  function renderTable(tableName){
+    const model = MODELS[tableName];
+    if(!model){ main.innerHTML = `<div class="empty-hint">Unknown table "${tableName}"</div>`; return; }
+    const neighbors = (adjacency[tableName]||[]);
+    const domain = model.domain;
+
+    main.innerHTML = `
+      <div class="crumbs">${crumbsHtml()}</div>
+      <div class="focus-grid">
+        <div>
+          <div class="panel">
+            <div class="table-title">
+              <span class="nm">${tableName}</span>
+              <span class="domain-tag" onclick="NAV.domain('${domain.replace(/'/g,"\\'")}')">${domain}</span>
+              <span class="gbtn" style="margin-left:auto;" onclick="NAV.openInErd('${tableName.replace(/'/g,"\\'")}')">Show as ERD →</span>
+              <span class="gbtn" onclick="NAV.openInGraph('${tableName.replace(/'/g,"\\'")}')">Show in graph →</span>
+            </div>
+            <div style="color:var(--text-faint);font-size:12px;">${model.fields.length} fields · ${neighbors.length} relation${neighbors.length===1?'':'s'}</div>
+          </div>
+          <div class="diagram-card"><div class="mermaid-host" id="tableDiagram"></div></div>
+          <div class="diagram-note" id="diagramNote"></div>
+          <div class="panel">
+            <h3>Fields</h3>
+            <table class="field-table" id="fieldTable"></table>
+          </div>
+        </div>
+        <div>
+          <div class="panel">
+            <h3>Relations (${neighbors.length})</h3>
+            <div id="relList"></div>
+          </div>
+          <div class="panel" id="enumPanel"></div>
+        </div>
+      </div>
+    `;
+
+    // ---- fields table ----
+    const ft = document.getElementById('fieldTable');
+    ft.innerHTML = model.fields.map(f=>{
+      const flags = [];
+      const isEnum = !!ENUMS[f.t];
+      if(f.id) flags.push('<span class="flag pk">PK</span>');
+      if(f.rel && !f.l) flags.push('<span class="flag fk">FK</span>');
+      if(isEnum) flags.push('<span class="flag enum">enum</span>');
+      if(f.u && !f.id) flags.push('<span class="flag uq">UQ</span>');
+      if(f.o) flags.push('<span class="flag opt">optional</span>');
+      if(f.l) flags.push('<span class="flag list">list</span>');
+      const typeDisplay = f.t + (f.l?'[]':'') + (f.o?'?':'');
+      const typeCls = isEnum ? 'ft enum-link' : 'ft';
+      const typeAttr = isEnum ? ` onclick="document.getElementById('enum_${escId(f.t)}')?.scrollIntoView({behavior:'smooth',block:'center'})"` : '';
+      return `<tr><td class="fn">${f.n}</td><td class="${typeCls}"${typeAttr}>${typeDisplay}</td><td class="flags">${flags.join('')}</td></tr>`;
+    }).join('');
+
+    // ---- enums used by this table's fields ----
+    const enumPanel = document.getElementById('enumPanel');
+    const usedEnumNames = [...new Set(model.fields.filter(f=>ENUMS[f.t]).map(f=>f.t))].sort((a,b)=>a.localeCompare(b));
+    if(usedEnumNames.length===0){
+      enumPanel.innerHTML = `<h3>Enums</h3><div class="empty-hint" style="padding:16px 0;">This table has no enum-typed fields</div>`;
+    } else {
+      enumPanel.innerHTML = `<h3>Enums (${usedEnumNames.length})</h3>` + usedEnumNames.map(en=>{
+        const fieldsUsingIt = model.fields.filter(f=>f.t===en).map(f=>f.n);
+        return `<div class="enum-block" id="enum_${escId(en)}">
+          <div class="enum-name">${en}</div>
+          <div class="enum-used-by">used by ${fieldsUsingIt.map(n=>`<code class="mono">${n}</code>`).join(', ')}</div>
+          <div class="enum-values">${ENUMS[en].map(v=>`<span class="enum-pill">${v}</span>`).join('')}</div>
+        </div>`;
+      }).join('');
+    }
+
+    // ---- relation list, grouped by domain ----
+    const byDomain = {};
+    neighbors.forEach(n=>{
+      const dom = MODELS[n.other] ? MODELS[n.other].domain : 'Misc / System';
+      byDomain[dom] = byDomain[dom] || [];
+      byDomain[dom].push(n);
+    });
+    const relList = document.getElementById('relList');
+    if(neighbors.length===0){
+      relList.innerHTML = '<div class="empty-hint">No relations</div>';
+    } else {
+      const domOrder = Object.keys(byDomain).sort((a,b)=> (a===domain?-1:b===domain?1:a.localeCompare(b)));
+      relList.innerHTML = domOrder.map(dom=>{
+        const items = byDomain[dom];
+        const rows = items.map(n=>{
+          const e = n.edge;
+          const field = n.selfIsA ? e.fieldOnA : (e.fieldOnB || e.fieldOnA);
+          const otherList = n.selfIsA ? e.bIsList : e.aIsList;
+          const card = otherList ? 'many' : 'one';
+          return `<li onclick="NAV.table('${n.other.replace(/'/g,"\\'")}')">
+            <span><span class="target">${n.other}</span><br><span style="color:var(--text-faint);font-size:11px;">via ${field}</span></span>
+            <span class="card">${card}</span>
+          </li>`;
+        }).join('');
+        return `<div class="rel-group-head">${dom} (${items.length})</div>${rows}`;
+      }).join('');
+    }
+
+    // ---- diagram ----
+    const note = document.getElementById('diagramNote');
+    const el = document.getElementById('tableDiagram');
+    let diagramNeighbors = neighbors;
+    let aggregated = {};
+    if(neighbors.length > NEIGHBOR_DIAGRAM_CAP){
+      const sameDomain = neighbors.filter(n => MODELS[n.other] && MODELS[n.other].domain === domain);
+      const otherDomain = neighbors.filter(n => !(MODELS[n.other] && MODELS[n.other].domain === domain));
+      otherDomain.forEach(n=>{
+        const dom = MODELS[n.other].domain;
+        aggregated[dom] = (aggregated[dom]||0)+1;
+      });
+      diagramNeighbors = sameDomain;
+      note.innerHTML = `${tableName} has ${neighbors.length} relations — showing the ${sameDomain.length} within its own domain plus aggregated counts per other domain. Full list of every related table is in the panel on the right.`;
+    } else {
+      note.innerHTML = `Showing all ${neighbors.length} direct relations of ${tableName}.`;
+    }
+
+    const lines = ['erDiagram'];
+    // focal entity with full fields (cap attribute rows to keep box readable)
+    lines.push(`  ${escId(tableName)} {`);
+    model.fields.filter(f=>!(f.rel && f.l)).slice(0,40).forEach(f=>{
+      const key = f.id ? 'PK' : (f.rel && !f.l ? 'FK' : '');
+      lines.push(`    ${sanitizeType(f.t)} ${sanitizeName(f.n)} ${key}`.trimEnd());
+    });
+    lines.push('  }');
+
+    diagramNeighbors.forEach(n=>{
+      const other = n.other;
+      lines.push(`  ${escId(other)} {`);
+      keyFields(other, 3).forEach(f=>{
+        const key = f.id ? 'PK' : '';
+        lines.push(`    ${sanitizeType(f.t)} ${sanitizeName(f.n)} ${key}`.trimEnd());
+      });
+      lines.push('  }');
+      const e = n.edge;
+      const sym = edgeSymbols(e);
+      const lbl = edgeLabel(e).replace(/"/g,"'");
+      if(n.selfIsA){
+        lines.push(`  ${escId(e.modelA)} ${sym.near_A}--${sym.near_B} ${escId(e.modelB)} : "${lbl}"`);
+      } else {
+        lines.push(`  ${escId(e.modelA)} ${sym.near_A}--${sym.near_B} ${escId(e.modelB)} : "${lbl}"`);
+      }
+    });
+
+    Object.keys(aggregated).forEach(dom=>{
+      const aggId = 'AGG_'+escId(dom);
+      lines.push(`  ${aggId}["${dom} (+${aggregated[dom]})"] {`);
+      lines.push(`    string info "external domain group"`);
+      lines.push('  }');
+      lines.push(`  ${escId(tableName)} }o--o{ ${aggId} : "..."`);
+    });
+
+    const text = lines.join('\n');
+    renderMermaidInto(el, text).then(()=>{
+      // wire aggregated group click -> domain nav ; neighbor click -> table nav
+      Object.keys(aggregated).forEach(dom=>{
+        const aggId = 'AGG_'+escId(dom);
+        const nodes = el.querySelectorAll(`[id*="${aggId}"]`);
+        nodes.forEach(nd=>{ nd.style.cursor='pointer'; nd.addEventListener('click', ()=>NAV.domain(dom)); });
+      });
+      diagramNeighbors.forEach(n=>{
+        const idEsc = escId(n.other);
+        const nodes = el.querySelectorAll(`[id*="${idEsc}"]`);
+        nodes.forEach(nd=>{ nd.style.cursor='pointer'; nd.addEventListener('click', ()=>NAV.table(n.other)); });
+      });
+    });
+    trackDiagram(el, text);
+  }
+
+  function sanitizeType(t){ return (t||'string').replace(/[^A-Za-z0-9_]/g,'_'); }
+  function sanitizeName(n){ return (n||'field').replace(/[^A-Za-z0-9_]/g,'_'); }
+
+  function render(){
+    renderSidebar();
+    if(state.view==='overview') renderOverview();
+    else if(state.view==='domain') renderDomain(state.domain);
+    else if(state.view==='table') renderTable(state.table);
+  }
+
+  // ---------- search ----------
+  const searchInput = document.getElementById('searchInput');
+  const searchResults = document.getElementById('searchResults');
+  let activeIdx = -1, currentMatches = [];
+
+  function doSearch(q){
+    q = q.trim().toLowerCase();
+    if(!q){ searchResults.hidden = true; return; }
+    currentMatches = modelNames.filter(n=>n.toLowerCase().includes(q)).slice(0,40);
+    if(currentMatches.length===0){ searchResults.innerHTML = '<div class="res" style="color:var(--text-faint);">No matches</div>'; searchResults.hidden=false; return; }
+    activeIdx = -1;
+    searchResults.innerHTML = currentMatches.map((n,i)=>
+      `<div class="res" data-i="${i}" onclick="NAV.table('${n.replace(/'/g,"\\'")}')"><span class="nm">${n}</span><span class="dm">${MODELS[n].domain}</span></div>`
+    ).join('');
+    searchResults.hidden = false;
+  }
+  searchInput.addEventListener('input', e=>doSearch(e.target.value));
+  searchInput.addEventListener('focus', e=>{ if(e.target.value) doSearch(e.target.value); });
+  searchInput.addEventListener('keydown', e=>{
+    const items = Array.from(searchResults.querySelectorAll('.res'));
+    if(e.key==='ArrowDown'){ e.preventDefault(); activeIdx = Math.min(activeIdx+1, items.length-1); }
+    else if(e.key==='ArrowUp'){ e.preventDefault(); activeIdx = Math.max(activeIdx-1, 0); }
+    else if(e.key==='Enter'){ if(currentMatches[activeIdx]) NAV.table(currentMatches[activeIdx]); else if(currentMatches[0]) NAV.table(currentMatches[0]); return; }
+    else return;
+    items.forEach((it,i)=>it.classList.toggle('active', i===activeIdx));
+    if(items[activeIdx]) items[activeIdx].scrollIntoView({block:'nearest'});
+  });
+  document.addEventListener('click', e=>{
+    if(!searchResults.contains(e.target) && e.target!==searchInput) searchResults.hidden = true;
+  });
+
+  // ======================================================================
+  // ---------- graph view (all tables at once, click-to-expand) ----------
+  // ======================================================================
+  let uiMode = 'menu';
+  const TENANCY = new Set(['Company','CompanyGST','Branch','Users']);
+
+  const G = {
+    inited:false, sim:null, svg:null, zoomG:null, zoom:null,
+    nodes:null, nodeById:null, linksAll:null, linksLayout:null,
+    activated:new Set(), revealedEdge:new Set(), // revealedEdge keys "A::B"
+    depth:1, includeTenancy:false, showAllEdges:false,
+    width:900, height:600,
+  };
+
+  function edgeKey(a,b){ return a<b ? a+'::'+b : b+'::'+a; }
+
+  function buildGraphModel(){
+    if(G.nodes) return;
+    G.nodes = modelNames.map(n => ({id:n, domain:(MODELS[n]||{}).domain||'Misc / System', degree:0}));
+    G.nodeById = {}; G.nodes.forEach(n=>G.nodeById[n.id]=n);
+    G.linksAll = EDGES.map(e=>({
+      source:e.modelA, target:e.modelB,
+      tenancy: TENANCY.has(e.modelA) || TENANCY.has(e.modelB),
+      edge:e,
+    }));
+    G.linksAll.forEach(l=>{ G.nodeById[l.source].degree++; G.nodeById[l.target].degree++; });
+    G.linksLayout = G.linksAll.filter(l=>!l.tenancy);
+    // Plain, d3-untouched copy for BFS logic. d3.forceLink mutates linksLayout's
+    // source/target from id-strings into node objects, and since .filter() keeps
+    // the SAME object references, that mutation leaks into linksAll too for the
+    // non-tenancy subset. bfsExpand must never read source/target off those arrays.
+    G.pairs = EDGES.map(e=>({
+      a:e.modelA, b:e.modelB,
+      tenancy: TENANCY.has(e.modelA) || TENANCY.has(e.modelB),
+    }));
+  }
+
+  function endpointId(x){ return (x && typeof x==='object') ? x.id : x; }
+
+  function nodeRadius(d){ return Math.max(4, Math.min(16, 3.5 + Math.sqrt(d.degree))); }
+
+  function domainAngleIndex(domain){ let i = DOMAIN_ORDER.indexOf(domain); return i<0?0:i; }
+  function domainCentroid(domain){
+    const n = DOMAIN_ORDER.length;
+    const i = domainAngleIndex(domain);
+    const R = 480;
+    const angle = (i/n) * 2*Math.PI;
+    return {x:R*Math.cos(angle), y:R*Math.sin(angle)};
+  }
+
+  let domainColorCache = null, domainColorTheme = null;
+  function domainColor(domain){
+    const dark = isDarkNow();
+    if(!domainColorCache || domainColorTheme!==dark){
+      domainColorCache = {}; domainColorTheme = dark;
+      DOMAIN_ORDER.forEach((d,i)=>{
+        const hue = Math.round((i/DOMAIN_ORDER.length)*360);
+        domainColorCache[d] = `hsl(${hue} ${dark?'65%':'52%'} ${dark?'62%':'46%'})`;
+      });
+    }
+    return domainColorCache[domain] || '#888';
+  }
+
+  function layoutOnce(){
+    if(G.sim) return;
+    buildGraphModel();
+    const sim = d3.forceSimulation(G.nodes)
+      .force('link', d3.forceLink(G.linksLayout).id(d=>d.id).distance(60).strength(0.22))
+      .force('charge', d3.forceManyBody().strength(-26))
+      .force('collide', d3.forceCollide().radius(d=>nodeRadius(d)+2))
+      .force('x', d3.forceX(d=>domainCentroid(d.domain).x).strength(0.1))
+      .force('y', d3.forceY(d=>domainCentroid(d.domain).y).strength(0.1))
+      .stop();
+    for(let i=0;i<260;i++) sim.tick();
+    sim.alpha(0).alphaTarget(0);
+    G.sim = sim;
+  }
+
+  function bfsExpand(startId, depth, includeTenancy){
+    const adj = {};
+    G.pairs.forEach(l=>{
+      if(!includeTenancy && l.tenancy) return;
+      (adj[l.a]=adj[l.a]||[]).push({to:l.b, key:edgeKey(l.a,l.b)});
+      (adj[l.b]=adj[l.b]||[]).push({to:l.a, key:edgeKey(l.a,l.b)});
+    });
+    let frontier = new Set([startId]);
+    const seenNodes = new Set([startId]);
+    const edgeKeys = new Set();
+    for(let d=0; d<depth; d++){
+      const next = new Set();
+      frontier.forEach(n=>{
+        (adj[n]||[]).forEach(e=>{
+          edgeKeys.add(e.key);
+          if(!seenNodes.has(e.to)){ seenNodes.add(e.to); next.add(e.to); }
+        });
+      });
+      frontier = next;
+    }
+    return {nodes:seenNodes, edges:edgeKeys};
+  }
+
+  function previewExpandCount(startId, depth, includeTenancy){
+    const r = bfsExpand(startId, depth, includeTenancy);
+    let newCount = 0;
+    r.nodes.forEach(n=>{ if(!G.activated.has(n)) newCount++; });
+    return newCount;
+  }
+
+  function expandFromNode(id){
+    const r = bfsExpand(id, G.depth, G.includeTenancy);
+    r.nodes.forEach(n=>G.activated.add(n));
+    r.edges.forEach(k=>G.revealedEdge.add(k));
+    G.activated.add(id);
+    drawGraph();
+    updateGraphStatus();
+  }
+
+  function clearExpansion(){
+    G.activated.clear(); G.revealedEdge.clear(); G.showAllEdges=false;
+    drawGraph(); updateGraphStatus();
+  }
+
+  function updateGraphStatus(){
+    const el = document.getElementById('graphStatus');
+    if(!el) return;
+    const hiddenTenancy = G.linksAll.length - G.linksLayout.length;
+    el.textContent = `${G.nodes.length} tables shown · ${G.activated.size} activated · ${G.showAllEdges ? G.linksAll.length : G.revealedEdge.size} relations drawn · ${hiddenTenancy} tenancy links (Company/CompanyGST/Branch/Users) hidden by default`;
+  }
+
+  function drawGraph(){
+    if(!G.svg) return;
+    const dark = isDarkNow();
+    const strokeNormal = dark ? 'rgba(141,130,255,.28)' : 'rgba(90,79,217,.25)';
+    const strokeActive = dark ? 'rgba(141,130,255,.85)' : 'rgba(90,79,217,.8)';
+
+    const visibleLinks = G.showAllEdges ? G.linksAll :
+      G.linksAll.filter(l => G.revealedEdge.has(edgeKey(endpointId(l.source), endpointId(l.target))));
+
+    const link = G.gLinks.selectAll('line').data(visibleLinks, d=> edgeKey(endpointId(d.source), endpointId(d.target)));
+    link.exit().remove();
+    link.enter().append('line')
+      .merge(link)
+      .attr('x1', d=> G.nodeById[endpointId(d.source)].x)
+      .attr('y1', d=> G.nodeById[endpointId(d.source)].y)
+      .attr('x2', d=> G.nodeById[endpointId(d.target)].x)
+      .attr('y2', d=> G.nodeById[endpointId(d.target)].y)
+      .attr('stroke', d=> (G.activated.has(endpointId(d.source)) && G.activated.has(endpointId(d.target))) ? strokeActive : strokeNormal)
+      .attr('stroke-width', 1.2);
+
+    const node = G.gNodes.selectAll('circle.gnode').data(G.nodes, d=>d.id);
+    node.enter().append('circle')
+      .attr('class','gnode')
+      .attr('r', d=>nodeRadius(d))
+      .on('mouseenter', (ev,d)=>showTip(ev,d))
+      .on('mousemove', (ev,d)=>moveTip(ev))
+      .on('mouseleave', hideTip)
+      .on('click', (ev,d)=>{ ev.stopPropagation(); expandFromNode(d.id); showPopover(d); })
+      .call(d3.drag()
+        .on('start', (ev,d)=>{ G.sim.alphaTarget(0.12).restart(); d.fx=d.x; d.fy=d.y; })
+        .on('drag', (ev,d)=>{ d.fx=ev.x; d.fy=ev.y; })
+        .on('end', (ev,d)=>{ G.sim.alphaTarget(0); d.fx=null; d.fy=null; })
+      )
+      .merge(node)
+      .attr('fill', d=>domainColor(d.domain))
+      .attr('opacity', d=> G.activated.has(d.id) ? 1 : 0.38)
+      .attr('stroke', d=> G.activated.has(d.id) ? (dark?'#fff':'#111') : 'none')
+      .attr('stroke-width', d=> G.activated.has(d.id) ? 1.5 : 0)
+      .attr('cx', d=>d.x).attr('cy', d=>d.y);
+
+    const topHubs = new Set(G.nodes.slice().sort((a,b)=>b.degree-a.degree).slice(0,15).map(d=>d.id));
+    const label = G.gLabels.selectAll('text.glabel').data(G.nodes, d=>d.id);
+    label.enter().append('text')
+      .attr('class','glabel')
+      .attr('font-family','IBM Plex Mono').attr('font-size','9.5px')
+      .attr('pointer-events','none')
+      .merge(label)
+      .attr('x', d=>d.x + nodeRadius(d) + 3).attr('y', d=>d.y+3)
+      .attr('fill', dark? '#c7cde0':'#333a46')
+      .text(d => (G.activated.has(d.id) || topHubs.has(d.id)) ? d.id : '')
+      .attr('opacity', d=> (G.activated.has(d.id) || topHubs.has(d.id)) ? 1 : 0);
+  }
+
+  let tipEl = null;
+  function showTip(ev,d){
+    if(!tipEl){ tipEl = document.createElement('div'); tipEl.className='graph-tip'; document.getElementById('graphSvgWrap').appendChild(tipEl); }
+    tipEl.innerHTML = `<div class="nm">${d.id}</div><div class="dm">${d.domain} · degree ${d.degree}</div>`;
+    tipEl.style.display='block';
+    moveTip(ev);
+  }
+  function moveTip(ev){
+    if(!tipEl) return;
+    const wrap = document.getElementById('graphSvgWrap').getBoundingClientRect();
+    tipEl.style.left = (ev.clientX - wrap.left + 14) + 'px';
+    tipEl.style.top = (ev.clientY - wrap.top + 10) + 'px';
+  }
+  function hideTip(){ if(tipEl) tipEl.style.display='none'; }
+
+  let popEl = null;
+  function showPopover(d){
+    if(popEl) popEl.remove();
+    popEl = document.createElement('div');
+    popEl.className = 'node-popover';
+    const wrap = document.getElementById('graphSvgWrap');
+    const rect = wrap.getBoundingClientRect();
+    const t = d3.zoomTransform(G.svg.node());
+    const sx = t.applyX(d.x), sy = t.applyY(d.y);
+    popEl.style.left = Math.min(sx+16, rect.width-200) + 'px';
+    popEl.style.top = Math.max(sy-10, 8) + 'px';
+    const more1 = previewExpandCount(d.id, G.depth+1, G.includeTenancy);
+    popEl.innerHTML = `
+      <span class="x" onclick="this.parentElement.remove()">×</span>
+      <div class="nm">${d.id}</div>
+      <div class="dm">${d.domain} · ${d.degree} relations</div>
+      <div class="row">
+        <button class="primary" onclick="NAV.openDetail('${d.id.replace(/'/g,"\\'")}')">Open detail</button>
+        <button onclick="NAV.expandMore('${d.id.replace(/'/g,"\\'")}')">+${more1} more (depth+1)</button>
+      </div>`;
+    wrap.appendChild(popEl);
+  }
+
+  function fitZoom(){
+    if(!G.nodes || !G.nodes.length) return;
+    let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+    G.nodes.forEach(d=>{ minX=Math.min(minX,d.x); maxX=Math.max(maxX,d.x); minY=Math.min(minY,d.y); maxY=Math.max(maxY,d.y); });
+    const w = maxX-minX||1, h = maxY-minY||1;
+    const rect = document.getElementById('graphSvgWrap').getBoundingClientRect();
+    const scale = Math.min(rect.width/(w+120), rect.height/(h+120), 2.2);
+    const tx = rect.width/2 - scale*(minX+maxX)/2;
+    const ty = rect.height/2 - scale*(minY+maxY)/2;
+    G.svg.transition().duration(300).call(G.zoom.transform, d3.zoomIdentity.translate(tx,ty).scale(scale));
+  }
+
+  function renderGraphPage(){
+    document.getElementById('sidebar').style.display = 'none';
+    main.innerHTML = `
+      <div id="graphPage">
+        <div id="graphToolbar">
+          <div class="grp"><label>Expand depth
+            <select id="depthSel">
+              <option value="1">1 hop</option>
+              <option value="2">2 hops</option>
+              <option value="3">3 hops</option>
+            </select>
+          </label></div>
+          <div class="grp"><label><input type="checkbox" id="tenChk"> include tenancy links (Company / CompanyGST / Branch / Users)</label></div>
+          <button class="gbtn" id="showAllBtn">Reveal entire graph</button>
+          <button class="gbtn" id="clearBtn">Clear expansion</button>
+          <button class="gbtn" id="refitBtn">Zoom to fit</button>
+          <div id="graphStatus"></div>
+        </div>
+        <div id="graphBody">
+          <div id="graphSvgWrap"></div>
+          <div id="graphLegend">
+            <div class="lg-note">Domains are grouped by my own reading of table names — the schema itself has no domain tags. Click a table to reveal its relations (accumulates); drag to reposition; scroll/pinch to zoom.</div>
+            <div id="legendList"></div>
+          </div>
+        </div>
+      </div>
+    `;
+    document.getElementById('depthSel').value = String(G.depth);
+    document.getElementById('tenChk').checked = G.includeTenancy;
+    document.getElementById('depthSel').addEventListener('change', e=>{ G.depth = parseInt(e.target.value,10); });
+    document.getElementById('tenChk').addEventListener('change', e=>{ G.includeTenancy = e.target.checked; updateGraphStatus(); });
+    document.getElementById('showAllBtn').addEventListener('click', ()=>{ G.showAllEdges = !G.showAllEdges; drawGraph(); updateGraphStatus(); });
+    document.getElementById('clearBtn').addEventListener('click', clearExpansion);
+    document.getElementById('refitBtn').addEventListener('click', fitZoom);
+
+    document.getElementById('legendList').innerHTML = DOMAIN_ORDER.map(d=>{
+      return `<div class="legend-item" onclick="NAV.domain('${d.replace(/'/g,"\\'")}')">
+        <span class="sw" style="background:${domainColor(d)}"></span>
+        <span class="lbl">${d}</span><span class="n">${DOMAINS[d].length}</span>
+      </div>`;
+    }).join('');
+
+    layoutOnce();
+
+    const wrap = document.getElementById('graphSvgWrap');
+    const rect = wrap.getBoundingClientRect();
+    G.width = rect.width; G.height = rect.height;
+
+    const svg = d3.select(wrap).append('svg')
+      .attr('viewBox', `0 0 ${G.width} ${G.height}`);
+    const zoomG = svg.append('g');
+    const gLinks = zoomG.append('g').attr('class','links');
+    const gNodes = zoomG.append('g').attr('class','nodes');
+    const gLabels = zoomG.append('g').attr('class','labels');
+
+    const zoom = d3.zoom().scaleExtent([0.1,4]).on('zoom', ev=>{ zoomG.attr('transform', ev.transform); if(popEl) popEl.remove(); });
+    svg.call(zoom);
+    svg.on('click', ()=>{ if(popEl) popEl.remove(); });
+
+    G.svg = svg; G.zoomG = zoomG; G.gLinks = gLinks; G.gNodes = gNodes; G.gLabels = gLabels; G.zoom = zoom;
+
+    G.sim.on('tick', drawGraph);
+
+    drawGraph();
+    updateGraphStatus();
+    setTimeout(fitZoom, 30);
+  }
+
+  function activateTableInGraph(tableName){
+    uiMode = 'graph';
+    document.querySelectorAll('.vt-btn').forEach(b=>b.classList.toggle('active', b.dataset.mode==='graph'));
+    renderGraphPage();
+    setTimeout(()=>{
+      expandFromNode(tableName);
+      const d = G.nodeById[tableName];
+      if(d){
+        const scale = 1.4;
+        const rect = document.getElementById('graphSvgWrap').getBoundingClientRect();
+        const tx = rect.width/2 - scale*d.x, ty = rect.height/2 - scale*d.y;
+        G.svg.transition().duration(350).call(G.zoom.transform, d3.zoomIdentity.translate(tx,ty).scale(scale));
+      }
+    }, 60);
+  }
+
+  window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ()=>{
+    domainColorCache = null;
+    if(uiMode==='graph' && G.svg) drawGraph();
+    if(uiMode==='erd') renderErd();
+  });
+
+  // ======================================================================
+  // ---------- ERD view (dbdiagram-style table boxes, click to expand) ----
+  // ======================================================================
+  const ERD = {
+    clicked:new Set(),      // tables explicitly clicked -> full field detail
+    visible:new Set(),      // clicked + their revealed neighbors -> compact preview
+    revealedEdge:new Set(), // edgeKey set
+    depth:1, includeTenancy:false,
+    zoomBehavior:null,
+  };
+
+  // Starting points for the empty ERD canvas: the same 22 domains used in
+  // Menu mode's sidebar/overview, not a separate curated subset -- so the
+  // categorization is consistent everywhere in the app.
+  const ERD_STARTER_GROUPS = DOMAIN_ORDER.map(d => ({
+    name: d,
+    tables: DOMAINS[d].slice().sort((a,b)=>a.localeCompare(b)),
+  }));
+
+  // Beyond this many visible tables, Mermaid's own dagre layout gets slow and
+  // the diagram stops being readable regardless -- at ~230 tables it previously
+  // hit Mermaid's hard "maximum text size" error outright. Ask before crossing
+  // this rather than silently rendering (or silently failing).
+  const ERD_WARN_VISIBLE = 70;
+
+  function expandErd(id, force){
+    buildGraphModel(); // ensures G.pairs exists (reused, d3-untouched)
+    const r = bfsExpand(id, ERD.depth, ERD.includeTenancy);
+    const projectedSize = new Set([...ERD.visible, ...r.nodes, id]).size;
+
+    if(!force && projectedSize > ERD_WARN_VISIBLE && projectedSize > ERD.visible.size){
+      const proceed = window.confirm(
+        `Expanding "${id}" at ${ERD.depth} hop${ERD.depth>1?'s':''}`+(ERD.includeTenancy?' (tenancy links included)':'')+
+        ` would show about ${projectedSize} tables.\n\n`+
+        `That's likely too dense to read as a diagram, and very large expansions can be slow to render.\n\n`+
+        `Click OK to render it anyway, or Cancel and try a lower depth (or uncheck "include tenancy links").`
+      );
+      if(!proceed) return;
+    }
+
+    ERD.clicked.add(id);
+    r.nodes.forEach(n=>ERD.visible.add(n));
+    r.edges.forEach(k=>ERD.revealedEdge.add(k));
+    ERD.visible.add(id);
+    renderErd();
+  }
+
+  let erdHasFitOnce = false;
+  function clearErd(){
+    ERD.clicked.clear(); ERD.visible.clear(); ERD.revealedEdge.clear();
+    erdHasFitOnce = false;
+    renderErd();
+  }
+
+  function buildErdMermaidText(){
+    const lines = ['erDiagram'];
+    const domainsUsed = new Set();
+    ERD.visible.forEach(t=> domainsUsed.add((MODELS[t]||{}).domain || 'Misc / System'));
+
+    ERD.visible.forEach(t=>{
+      const model = MODELS[t];
+      if(!model) return;
+      lines.push(`  ${escId(t)} {`);
+      if(ERD.clicked.has(t)){
+        model.fields.filter(f=>!(f.rel && f.l)).slice(0,40).forEach(f=>{
+          const key = f.id ? 'PK' : (f.rel && !f.l ? 'FK' : '');
+          lines.push(`    ${sanitizeType(f.t)} ${sanitizeName(f.n)} ${key}`.trimEnd());
+        });
+      } else {
+        keyFields(t,4).forEach(f=>{
+          const key = f.id ? 'PK' : '';
+          lines.push(`    ${sanitizeType(f.t)} ${sanitizeName(f.n)} ${key}`.trimEnd());
+        });
+      }
+      lines.push('  }');
+    });
+
+    EDGES.forEach(e=>{
+      const k = edgeKey(e.modelA, e.modelB);
+      if(!ERD.revealedEdge.has(k)) return;
+      if(!ERD.visible.has(e.modelA) || !ERD.visible.has(e.modelB)) return;
+      const sym = edgeSymbols(e);
+      const lbl = edgeLabel(e).replace(/"/g,"'");
+      lines.push(`  ${escId(e.modelA)} ${sym.near_A}--${sym.near_B} ${escId(e.modelB)} : "${lbl}"`);
+    });
+
+    return lines.join('\n');
+  }
+
+  // Zoom is applied by setting the rendered SVG's width/height in px directly
+  // (derived from its own viewBox size x erdScale) rather than a CSS
+  // transform:scale() on the wrapper. Mermaid's SVGs carry their own
+  // width/height/max-width presentation attributes for responsive embedding,
+  // and those fight a wrapper-level scale() unpredictably on larger diagrams
+  // (the symptom: zoom controls do little or nothing once a diagram has many
+  // tables). Setting the SVG's own pixel size sidesteps that entirely — only
+  // panning uses a transform, on a separate element.
+  let erdPanX=0, erdPanY=0, erdScale=1, erdContentW=0, erdContentH=0;
+  const ERD_MIN_SCALE = 0.03, ERD_MAX_SCALE = 12;
+
+  function applyErdTransform(){
+    const inner = document.getElementById('erdInner');
+    if(!inner) return;
+    inner.style.transform = `translate(${erdPanX}px,${erdPanY}px)`;
+    const svg = inner.querySelector('svg');
+    if(svg && erdContentW>0 && erdContentH>0){
+      svg.style.width = (erdContentW*erdScale)+'px';
+      svg.style.height = (erdContentH*erdScale)+'px';
+    }
+  }
+
+  // Zoom while keeping the content point under (anchorX,anchorY) -- in #erdCanvasWrap
+  // viewport coordinates -- visually fixed, instead of zooming from the origin.
+  function erdZoomAt(factor, anchorX, anchorY){
+    const newScale = Math.max(ERD_MIN_SCALE, Math.min(ERD_MAX_SCALE, erdScale*factor));
+    if(newScale === erdScale) return;
+    const contentX = (anchorX - erdPanX) / erdScale;
+    const contentY = (anchorY - erdPanY) / erdScale;
+    erdScale = newScale;
+    erdPanX = anchorX - contentX*erdScale;
+    erdPanY = anchorY - contentY*erdScale;
+    applyErdTransform();
+  }
+  function erdZoomBy(factor){
+    const wrap = document.getElementById('erdCanvasWrap');
+    const r = wrap ? wrap.getBoundingClientRect() : {width:600,height:400};
+    erdZoomAt(factor, r.width/2, r.height/2);
+  }
+
+  // Measures the just-rendered SVG's true content size from its viewBox (not
+  // getBoundingClientRect, which reflects whatever size is currently applied)
+  // and caches it in erdContentW/H for applyErdTransform to use.
+  function erdMeasureContent(svg){
+    if(!svg) return;
+    const vb = svg.viewBox && svg.viewBox.baseVal;
+    if(vb && vb.width > 0 && vb.height > 0){
+      erdContentW = vb.width; erdContentH = vb.height;
+    } else {
+      // no viewBox (rare) -- read the attribute-specified size before we touch it
+      const w = parseFloat(svg.getAttribute('width'));
+      const h = parseFloat(svg.getAttribute('height'));
+      erdContentW = w>0 ? w : (svg.getBoundingClientRect().width||400);
+      erdContentH = h>0 ? h : (svg.getBoundingClientRect().height||300);
+    }
+  }
+
+  // Fit the currently rendered diagram into the visible canvas and center it.
+  function erdFitToContent(){
+    const wrap = document.getElementById('erdCanvasWrap');
+    if(!wrap || erdContentW<=0 || erdContentH<=0) return;
+    const wrapRect = wrap.getBoundingClientRect();
+    const margin = 48;
+    const scale = Math.max(ERD_MIN_SCALE, Math.min(
+      (wrapRect.width - margin*2) / erdContentW,
+      (wrapRect.height - margin*2) / erdContentH,
+      ERD_MAX_SCALE
+    ));
+    erdScale = scale;
+    erdPanX = (wrapRect.width - erdContentW*scale) / 2;
+    erdPanY = (wrapRect.height - erdContentH*scale) / 2;
+    applyErdTransform();
+  }
+  function erdResetView(){ erdFitToContent(); }
+  // Zoom to a size where field text is comfortably readable, centered on
+  // whatever's currently in the middle of the viewport -- the fast path out
+  // of "the diagram auto-fit so small I can't read it" for large expansions.
+  function erdZoomToReadable(){
+    const wrap = document.getElementById('erdCanvasWrap');
+    if(!wrap || erdContentW<=0) return;
+    const r = wrap.getBoundingClientRect();
+    const cx = r.width/2, cy = r.height/2;
+    const contentX = (cx - erdPanX) / erdScale;
+    const contentY = (cy - erdPanY) / erdScale;
+    erdScale = Math.max(erdScale, 1);
+    erdPanX = cx - contentX*erdScale;
+    erdPanY = cy - contentY*erdScale;
+    applyErdTransform();
+  }
+
+  // One-time delegated pan/zoom handlers (document-level, not re-attached per
+  // renderErdPage() call -- #erdCanvasWrap is recreated via innerHTML on every
+  // mode switch, so per-element listeners would otherwise pile up unboundedly
+  // each time the user toggles into ERD mode).
+  let erdPanZoomInited = false;
+  function setupErdPanZoomOnce(){
+    if(erdPanZoomInited) return;
+    erdPanZoomInited = true;
+    let dragging=false, lastX=0, lastY=0;
+    document.addEventListener('mousedown', e=>{
+      if(uiMode!=='erd') return;
+      const wrap = e.target.closest('#erdCanvasWrap');
+      if(!wrap || e.target.closest('#erdZoomCtl')) return;
+      dragging=true; lastX=e.clientX; lastY=e.clientY; wrap.classList.add('dragging');
+    });
+    document.addEventListener('mousemove', e=>{
+      if(!dragging || uiMode!=='erd') return;
+      erdPanX += (e.clientX-lastX); erdPanY += (e.clientY-lastY);
+      lastX=e.clientX; lastY=e.clientY; applyErdTransform();
+    });
+    document.addEventListener('mouseup', ()=>{
+      if(!dragging) return;
+      dragging=false;
+      const wrap = document.getElementById('erdCanvasWrap');
+      if(wrap) wrap.classList.remove('dragging');
+    });
+    document.addEventListener('wheel', e=>{
+      if(uiMode!=='erd') return;
+      const wrap = e.target.closest('#erdCanvasWrap');
+      if(!wrap) return;
+      e.preventDefault();
+      const r = wrap.getBoundingClientRect();
+      // Factor scales with the gesture's own delta instead of a fixed per-tick
+      // jump, so a slow trackpad pinch gives fine control and a fast one zooms
+      // further -- clamped so no single event (an odd device's huge delta
+      // spike) can jump too far either way.
+      const dy = Math.max(-120, Math.min(120, e.deltaY));
+      const factor = Math.max(0.8, Math.min(1.28, Math.pow(1.0011, -dy)));
+      erdZoomAt(factor, e.clientX-r.left, e.clientY-r.top);
+    }, {passive:false});
+  }
+
+  async function renderErd(){
+    const emptyEl = document.getElementById('erdEmpty');
+    const inner = document.getElementById('erdInner');
+    const statusEl = document.getElementById('erdStatus');
+    if(!inner) return;
+
+    if(statusEl){
+      const clickedCount = ERD.clicked.size, visibleCount = ERD.visible.size;
+      statusEl.textContent = visibleCount===0
+        ? `0 tables shown · ${modelNames.length} total in schema`
+        : `${clickedCount} expanded in full detail · ${visibleCount} tables visible · ${ERD.revealedEdge.size} relations drawn`;
+    }
+
+    if(ERD.visible.size===0){
+      if(emptyEl) emptyEl.style.display='flex';
+      inner.innerHTML = '';
+      return;
+    }
+    if(emptyEl) emptyEl.style.display='none';
+
+    const text = buildErdMermaidText();
+    const host = document.createElement('div');
+    host.className = 'mermaid-host';
+    inner.innerHTML = '';
+    inner.appendChild(host);
+    await renderMermaidInto(host, text);
+    erdMeasureContent(host.querySelector('svg'));
+    // Auto-fit only the first time content appears (empty -> populated), so later
+    // expansions add to the diagram without yanking the view the user has already
+    // panned/zoomed. Re-applies the current pan/zoom either way, since the SVG
+    // element itself was just replaced and needs its size/transform re-set.
+    if(!erdHasFitOnce){ erdFitToContent(); erdHasFitOnce = true; }
+    else { applyErdTransform(); }
+
+    // wire clicks on each visible table's rendered group -> expand further
+    ERD.visible.forEach(t=>{
+      const idEsc = escId(t);
+      const nodes = host.querySelectorAll(`[id*="${idEsc}"]`);
+      nodes.forEach(n=>{ n.style.cursor='pointer'; n.addEventListener('click', (ev)=>{ ev.stopPropagation(); expandErd(t); }); });
+    });
+  }
+
+  function renderErdPage(){
+    document.getElementById('sidebar').style.display = 'none';
+    main.innerHTML = `
+      <div id="erdPage">
+        <div id="graphToolbar">
+          <div class="grp"><label>Expand depth
+            <select id="erdDepthSel">
+              <option value="1">1 hop</option>
+              <option value="2">2 hops</option>
+              <option value="3">3 hops</option>
+            </select>
+          </label></div>
+          <div class="grp"><label><input type="checkbox" id="erdTenChk"> include tenancy links (Company / CompanyGST / Branch / Users)</label></div>
+          <button class="gbtn" id="erdClearBtn">Clear</button>
+          <button class="gbtn" id="erdResetViewBtn">Fit to screen</button>
+          <button class="gbtn" id="erdReadableBtn">Zoom to readable</button>
+          <div id="erdStatus" style="margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--text-faint);"></div>
+        </div>
+        <div id="graphBody">
+          <div id="erdCanvasWrap">
+            <div id="erdInner"></div>
+            <div id="erdZoomCtl">
+              <button id="erdZoomIn">+</button>
+              <button id="erdZoomOut">−</button>
+              <button id="erdZoomReset" style="font-size:11px;">⤢</button>
+            </div>
+            <div id="erdEmpty">
+              <div class="big">Click a table to start building the diagram</div>
+              <div>Clicked tables show full fields with PK/FK markers; their relations load in compact preview — click a preview box to expand it too.</div>
+              <div class="starter-groups">
+                ${ERD_STARTER_GROUPS.map((g,i)=>{
+                  const chips = g.tables.filter(t=>MODELS[t]);
+                  if(!chips.length) return '';
+                  return `<details class="starter-group">
+                    <summary><span>${g.name}</span><span class="cnt">${chips.length}</span></summary>
+                    <div class="eg">${chips.map(t=>`<span class="table-chip" onclick="event.stopPropagation(); NAV.table('${t.replace(/'/g,"\\'")}')">${t}</span>`).join('')}</div>
+                  </details>`;
+                }).join('')}
+              </div>
+            </div>
+          </div>
+          <div id="graphLegend">
+            <div class="lg-note">Real ER diagram built from this table's fields and relation types — like dbdiagram.io. Domains are my own grouping, not schema-asserted. Expanding a hub table (Company, TaxInvoice, Item…) can reveal many tables at once; use Clear to restart.</div>
+            <div id="erdLegendList"></div>
+          </div>
+        </div>
+      </div>
+    `;
+    document.getElementById('erdDepthSel').value = String(ERD.depth);
+    document.getElementById('erdTenChk').checked = ERD.includeTenancy;
+    document.getElementById('erdDepthSel').addEventListener('change', e=>{ ERD.depth = parseInt(e.target.value,10); });
+    document.getElementById('erdTenChk').addEventListener('change', e=>{ ERD.includeTenancy = e.target.checked; });
+    document.getElementById('erdClearBtn').addEventListener('click', clearErd);
+    document.getElementById('erdResetViewBtn').addEventListener('click', erdResetView);
+    document.getElementById('erdReadableBtn').addEventListener('click', erdZoomToReadable);
+    document.getElementById('erdZoomIn').addEventListener('click', ()=>erdZoomBy(1.25));
+    document.getElementById('erdZoomOut').addEventListener('click', ()=>erdZoomBy(0.8));
+    document.getElementById('erdZoomReset').addEventListener('click', erdResetView);
+
+    document.getElementById('erdLegendList').innerHTML = DOMAIN_ORDER.map(d=>
+      `<div class="legend-item" onclick="NAV.domain('${d.replace(/'/g,"\\'")}')">
+        <span class="lbl">${d}</span><span class="n">${DOMAINS[d].length}</span>
+      </div>`
+    ).join('');
+
+    setupErdPanZoomOnce();
+    renderErd();
+  }
+
+  function activateTableInErd(tableName){
+    uiMode = 'erd';
+    document.querySelectorAll('.vt-btn').forEach(b=>b.classList.toggle('active', b.dataset.mode==='erd'));
+    renderErdPage();
+    setTimeout(()=> expandErd(tableName), 30);
+  }
+
+  // ---------- help modal ----------
+  function buildHelpHtml(){
+    return `
+      <div class="help-section">
+        <h3>Relationship symbols</h3>
+        <p>Every relation line has a symbol at each end, read as crow's-foot notation: it tells you how many rows on that side can belong to one row on the other side.</p>
+        <div class="help-row"><span class="help-sym">||</span><span class="help-desc"><strong>Exactly one</strong> — every row on the other side must have one (and only one) match here. The usual parent/required side of a relation.</span></div>
+        <div class="help-row"><span class="help-sym">o|</span><span class="help-desc"><strong>Zero or one</strong> — a match here is optional (the foreign key can be null).</span></div>
+        <div class="help-row"><span class="help-sym">o{</span><span class="help-desc"><strong>Zero or many</strong> — the "many" side of a one-to-many relation, e.g. one Company has many TaxInvoices.</span></div>
+        <p style="margin-top:8px;">Example: <code class="mono">Company ||--o{ TaxInvoice</code> reads as "one Company has zero or more TaxInvoices, and every TaxInvoice belongs to exactly one Company." The label on the line is the field name carrying the relation.</p>
+      </div>
+
+      <div class="help-section">
+        <h3>Field badges</h3>
+        <p>Shown on table boxes in the ERD/Graph diagrams and in the Table view's field list:</p>
+        <div class="help-badges">
+          <span class="flag pk">PK</span><span class="flag fk">FK</span><span class="flag uq">UQ</span><span class="flag opt">optional</span><span class="flag list">list</span>
+        </div>
+        <p><strong>PK</strong> primary key &nbsp;·&nbsp; <strong>FK</strong> references another table &nbsp;·&nbsp; <strong>UQ</strong> unique constraint &nbsp;·&nbsp; <strong>optional</strong> nullable field &nbsp;·&nbsp; <strong>list</strong> array field. Prisma's virtual back-relation arrays (e.g. a parent's list of its children) aren't shown as field rows anywhere here — only real columns and single-object relation fields are.</p>
+      </div>
+
+      <div class="help-section">
+        <h3>The three views</h3>
+        <div class="help-views">
+          <div class="help-view-card"><div class="vt">Menu</div><p>Browse by domain, then table. Shows a table's complete field list plus a focused diagram of it and its direct relations. Best for reading one table in detail.</p></div>
+          <div class="help-view-card"><div class="vt">Graph</div><p>All ${modelNames.length} tables shown as dots, clustered and colored by domain. Click a table to reveal its relations (accumulates as you click more). Best for seeing the overall shape of the schema at a glance.</p></div>
+          <div class="help-view-card"><div class="vt">ERD</div><p>A real relational diagram, dbdiagram.io-style: click a table to render it as a full box with fields and PK/FK markers; its neighbors load as compact preview boxes you can click to expand further. Best for building up an actual ER diagram of the part of the schema you care about.</p></div>
+        </div>
+      </div>
+
+      <div class="help-section">
+        <h3>Things worth knowing</h3>
+        <p><strong>Domain colors/groupings are mine, not the schema's</strong> — I clustered all ${modelNames.length} tables into ${DOMAIN_ORDER.length} domains by reading table names and this project's context; the database itself has no such tags. If a table feels misfiled, that's a judgment call, not a schema fact.</p>
+        <p><strong>Tenancy links are hidden by default</strong> in Graph and ERD — relations to <code class="mono">Company</code>, <code class="mono">CompanyGST</code>, <code class="mono">Branch</code> and <code class="mono">Users</code> exist on nearly every table (every row belongs to a company), so including them by default would flood every expansion. There's a checkbox to include them when you specifically want to see that.</p>
+        <p><strong>Expand depth</strong> controls how many relation-hops a single click reveals (1–3). Clicks accumulate — clicking more tables adds to what's shown rather than resetting it. "Clear" restarts.</p>
+        <p><strong>Pan &amp; zoom</strong> (Graph/ERD): drag to pan, scroll or pinch to zoom — zoom speed scales with how fast you scroll/pinch, so a slow gesture gives fine control. "Fit to screen" re-centers everything; "Zoom to readable" jumps to 1:1 scale on whatever's in the middle of your view, for when an expansion rendered too small to read.</p>
+      </div>
+    `;
+  }
+
+  function openHelp(){
+    document.getElementById('helpBody').innerHTML = buildHelpHtml();
+    document.getElementById('helpBackdrop').hidden = false;
+  }
+  function closeHelp(){
+    document.getElementById('helpBackdrop').hidden = true;
+  }
+  let helpBackdropInited = false;
+  function setupHelpOnce(){
+    if(helpBackdropInited) return;
+    helpBackdropInited = true;
+    document.getElementById('helpBackdrop').addEventListener('click', e=>{
+      if(e.target.id==='helpBackdrop') closeHelp();
+    });
+    document.addEventListener('keydown', e=>{
+      if(e.key==='Escape' && !document.getElementById('helpBackdrop').hidden) closeHelp();
+    });
+  }
+  setupHelpOnce();
+
+  // ---------- nav API ----------
+  window.NAV = {
+    help: openHelp,
+    closeHelp: closeHelp,
+    overview: ()=> go('overview'),
+    domain: (d)=> { if(uiMode!=='menu'){ NAV.menuMode(); } go('domain', {domain:d}); },
+    table: (t)=> {
+      searchResults.hidden=true; searchInput.value='';
+      if(uiMode==='graph'){ expandFromNode(t); const d=G.nodeById[t]; if(d){ const scale=1.4; const rect=document.getElementById('graphSvgWrap').getBoundingClientRect(); G.svg.transition().duration(300).call(G.zoom.transform, d3.zoomIdentity.translate(rect.width/2-scale*d.x, rect.height/2-scale*d.y).scale(scale)); } return; }
+      if(uiMode==='erd'){ expandErd(t); return; }
+      go('table', {table:t});
+    },
+    openDetail: (t)=> { if(popEl) popEl.remove(); NAV.menuMode(); go('table', {table:t}); },
+    openInGraph: (t)=> activateTableInGraph(t),
+    openInErd: (t)=> activateTableInErd(t),
+    expandMore: (t)=> {
+      const r = bfsExpand(t, G.depth+1, G.includeTenancy);
+      r.nodes.forEach(n=>G.activated.add(n));
+      r.edges.forEach(k=>G.revealedEdge.add(k));
+      G.activated.add(t);
+      if(popEl) popEl.remove();
+      drawGraph(); updateGraphStatus();
+    },
+    menuMode: ()=> {
+      uiMode = 'menu';
+      document.querySelectorAll('.vt-btn').forEach(b=>b.classList.toggle('active', b.dataset.mode==='menu'));
+      document.getElementById('sidebar').style.display = '';
+      render();
+    },
+    graphMode: ()=> {
+      uiMode = 'graph';
+      document.querySelectorAll('.vt-btn').forEach(b=>b.classList.toggle('active', b.dataset.mode==='graph'));
+      renderGraphPage();
+    },
+    erdMode: ()=> {
+      uiMode = 'erd';
+      document.querySelectorAll('.vt-btn').forEach(b=>b.classList.toggle('active', b.dataset.mode==='erd'));
+      renderErdPage();
+    },
+  };
+
+  renderStatChips();
+  render();
+})();
+</script>
+</body>
+</html>
