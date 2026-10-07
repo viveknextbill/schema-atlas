@@ -1231,6 +1231,43 @@
     renderErd();
   }
 
+  // Re-runs every already-clicked table's expansion at the CURRENT depth/
+  // tenancy settings. Without this, changing "expand depth" or the tenancy
+  // checkbox only affected the NEXT click -- tables already on screen stayed
+  // at whatever depth they were first expanded with, which read as the
+  // control doing nothing until you cleared and started over.
+  // Only ever grows the diagram (same accumulate-not-reset model as a normal
+  // click); lowering the depth or unchecking tenancy won't un-reveal
+  // anything already shown -- "Clear" is still how you start smaller.
+  function reapplyErdSettings(){
+    buildGraphModel();
+    if(ERD.clicked.size===0) return;
+
+    const ids = [...ERD.clicked];
+    const unionNodes = new Set();
+    const unionEdges = new Set();
+    ids.forEach(id=>{
+      const r = bfsExpand(id, ERD.depth, ERD.includeTenancy);
+      r.nodes.forEach(n=>unionNodes.add(n));
+      r.edges.forEach(k=>unionEdges.add(k));
+    });
+    const projectedSize = new Set([...ERD.visible, ...unionNodes]).size;
+
+    if(projectedSize > ERD_WARN_VISIBLE && projectedSize > ERD.visible.size){
+      const proceed = window.confirm(
+        `Re-expanding your ${ids.length} already-expanded table${ids.length>1?'s':''} at the new settings `+
+        `would show about ${projectedSize} tables.\n\n`+
+        `That's likely too dense to read as a diagram, and very large expansions can be slow to render.\n\n`+
+        `Click OK to apply anyway, or Cancel to pick a smaller depth first (the setting itself is still changed; nothing new will render until you apply it or click a table again).`
+      );
+      if(!proceed) return;
+    }
+
+    unionNodes.forEach(n=>ERD.visible.add(n));
+    unionEdges.forEach(k=>ERD.revealedEdge.add(k));
+    renderErd();
+  }
+
   let erdHasFitOnce = false;
   function clearErd(){
     ERD.clicked.clear(); ERD.visible.clear(); ERD.revealedEdge.clear();
@@ -1497,8 +1534,8 @@
     `;
     document.getElementById('erdDepthSel').value = String(ERD.depth);
     document.getElementById('erdTenChk').checked = ERD.includeTenancy;
-    document.getElementById('erdDepthSel').addEventListener('change', e=>{ ERD.depth = parseInt(e.target.value,10); });
-    document.getElementById('erdTenChk').addEventListener('change', e=>{ ERD.includeTenancy = e.target.checked; });
+    document.getElementById('erdDepthSel').addEventListener('change', e=>{ ERD.depth = parseInt(e.target.value,10); reapplyErdSettings(); });
+    document.getElementById('erdTenChk').addEventListener('change', e=>{ ERD.includeTenancy = e.target.checked; reapplyErdSettings(); });
     document.getElementById('erdClearBtn').addEventListener('click', clearErd);
     document.getElementById('erdResetViewBtn').addEventListener('click', erdResetView);
     document.getElementById('erdReadableBtn').addEventListener('click', erdZoomToReadable);
