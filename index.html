@@ -930,9 +930,20 @@
   }
 
   function bfsExpand(startId, depth, includeTenancy){
+    // The tenancy filter drops edges touching Company/CompanyGST/Branch/Users
+    // by default -- but if the CLICKED table itself is one of those four,
+    // dropping its own edges too leaves it with no adjacency at all, so it
+    // renders alone with nothing to expand into. Bypass the filter only for
+    // edges that touch startId, and only when startId itself is a tenancy
+    // table -- an ordinary table (e.g. Recipe) that merely happens to touch
+    // Company must still have that edge filtered, same as always.
+    const startIsTenancyHub = TENANCY.has(startId);
     const adj = {};
     G.pairs.forEach(l=>{
-      if(!includeTenancy && l.tenancy) return;
+      if(!includeTenancy && l.tenancy){
+        const bypass = startIsTenancyHub && (l.a===startId || l.b===startId);
+        if(!bypass) return;
+      }
       (adj[l.a]=adj[l.a]||[]).push({to:l.b, key:edgeKey(l.a,l.b)});
       (adj[l.b]=adj[l.b]||[]).push({to:l.a, key:edgeKey(l.a,l.b)});
     });
